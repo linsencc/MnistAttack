@@ -16,9 +16,9 @@ import attack
 
 parser = argparse.ArgumentParser(description='命令行参数')
 parser.add_argument('--image', type=str, help='图片的路径', required=True)
-parser.add_argument('--method', type=str, help='识别或攻击方法', choices=['identify', 'fgsm', 'ifgsm', 'mifgsm', 'deefool'], required=True)
+parser.add_argument('--method', type=str, help='识别或攻击方法', choices=['identify', 'fgsm', 'ifgsm', 'mifgsm', 'deepfool'], required=True)
 parser.add_argument('--eps',  type=float, help='生成对抗样本时其扰动大小限制')
-parser.add_argument('--interation', type=int, help='生成对抗样本时其迭代次数')
+parser.add_argument('--iteration', type=int, help='生成对抗样本时其迭代次数')
 parser.add_argument('--alpha', type=float, help='生成对抗样本时其迭代步长')
 parser.add_argument('--decay', type=float, help='MI-FGSM攻击中的decay系数')
 
@@ -51,23 +51,23 @@ def get_attacker(param: dict):
     attacker = None
 
     if ack_method == 'fgsm':
-        eps = float(param.get('eps'))
+        eps = float(param.get('eps')) / 255
         attacker = attack.FGSM(Model, eps)
     if ack_method == 'ifgsm':
-        eps = float(param.get('eps'))
-        iteration = float(param.get('iteration'))
-        alpha = float(param.get('alpha'))
+        eps = float(param.get('eps')) / 255
+        iteration = int(param.get('iteration'))
+        alpha = float(param.get('alpha')) / 255
         attacker = attack.IFGSM(Model, eps, alpha, iteration)
     if ack_method == 'mifgsm':
-        eps = float(param.get('eps'))
-        iteration = float(param.get('iteration'))
-        alpha = float(param.get('alpha'))
+        eps = float(param.get('eps')) / 255
+        iteration = int(param.get('iteration'))
+        alpha = float(param.get('alpha')) / 255
         decay = float(param.get('decay'))
         attacker = attack.MIFGSM(Model, eps, alpha, iteration, decay)
     if ack_method == 'deepfool':
-        eps = float(param.get('eps'))
-        iteration = float(param.get('iteration'))
-        attacker = attack.DeepFool(eps, iteration)
+        eps = float(param.get('eps')) / 255
+        iteration = int(param.get('iteration'))
+        attacker = attack.DeepFool(Model, eps, iteration)
     return attacker
 
 
@@ -92,15 +92,17 @@ def mnist_attack(param):
     np_adv_image = np.array(img_adv * 255, np.int16)
     np_adv_image = np_adv_image.reshape((24, 24))
     # 样本原图
-    np_ori_image = np.array(img_tensor[0][0] * 255, dtype=np.int16)
+    np_ori_image = np.array(img_tensor.detach().numpy()[0][0] * 255, dtype=np.int16)
     np_ori_image = np_ori_image.reshape((24, 24))
     # 获取对抗样本和原图的差值（生成的噪声），并进行反转（白底个人觉得更直观）
     np_noise_image = 255 - (np_adv_image - np_ori_image)
     np_adv_image = 255 - np_adv_image
     # cv2写入图像
     adv_image_path = os.path.join(dir_path, 'adv_' + image_name)
+    np_adv_image = cv2.resize(np_adv_image, (256, 256), interpolation=cv2.INTER_NEAREST)
     cv2_adv_resp = cv2.imwrite(adv_image_path, np_adv_image)
     noise_image_path = os.path.join(dir_path, 'noise_' + image_name)
+    np_noise_image = cv2.resize(np_noise_image, (256, 256), interpolation=cv2.INTER_NEAREST)
     cv2_noise_resp = cv2.imwrite(noise_image_path, np_noise_image)
 
     return {"predict": predict,

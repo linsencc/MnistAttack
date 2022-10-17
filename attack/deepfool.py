@@ -57,4 +57,4 @@ class DeepFool(Attack):
             img = torch.where(img < ori_img - self.eps, ori_img - self.eps, img + r)
             img = torch.clamp(img, min=0, max=1).detach()
 
-        return img
+        return img.detach()
